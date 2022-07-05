@@ -5,10 +5,12 @@ import string
 import uuid
 from urllib.parse import urljoin, urlparse
 
+
 import html2text
 import markdown
 import requests
 from bs4 import BeautifulSoup
+from cairosvg import svg2png
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
@@ -16,6 +18,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 from dynamic_filenames import FilePattern
 from stdimage.models import StdImageFieldFile
+from tempfile import NamedTemporaryFile
 
 from course_discovery.apps.core.models import SalesforceConfiguration
 from course_discovery.apps.core.utils import serialize_datetime
@@ -689,8 +692,6 @@ def download_and_save_course_image(course, image_url, data_field='image', header
                 # field save errors for some reasons.
                 if data_field == 'image':
                     course.image.save(filename, ContentFile(response.content))
-                elif data_field == 'organization_logo_override':
-                    course.organization_logo_override.save(filename, ContentFile(response.content))
                 logger.info('Image for course [%s] successfully updated.', course.key)
                 return True
             else:
@@ -704,6 +705,29 @@ def download_and_save_course_image(course, image_url, data_field='image', header
     except Exception:  # pylint: disable=broad-except
         logger.exception('An unknown exception occurred while downloading image for course [%s]', course.key)
     return False
+
+
+def download_and_save_organization_logo_override_image(course, image_url):
+    """
+    Helper method to download an svg image from a provided image url and save it
+    in the organization logo override
+    """
+    try:
+        extension = 'png'
+        filename = '{uuid}.{extension}'.format(uuid=str(course.uuid), extension=extension)
+        image_file = convert_svg_to_png_from_url(image_url)
+        course.organization_logo_override.save(filename, image_file)
+        logger.info('Image for course [%s] successfully updated.', course.key)
+        return True
+    except Exception:  # pylint: disable=broad-except
+        logger.exception('An unknown exception occurred while downloading image for course [%s]', course.key)
+    return False
+
+
+def convert_svg_to_png_from_url(image_url):
+    temp_file = NamedTemporaryFile()
+    svg2png(url=image_url, write_to=temp_file.name)
+    return temp_file
 
 
 def get_downloadable_url_from_drive_link(file_path):

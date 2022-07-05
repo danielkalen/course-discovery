@@ -17,7 +17,9 @@ from course_discovery.apps.course_metadata.models import (
     Collaborator, Course, CourseRun, CourseRunPacing, CourseRunType, CourseType, Organization, Person, ProgramType,
     Subject
 )
-from course_discovery.apps.course_metadata.utils import download_and_save_course_image
+from course_discovery.apps.course_metadata.utils import (
+    download_and_save_course_image, download_and_save_organization_logo_override_image
+)
 from course_discovery.apps.ietf_language_tags.models import LanguageTag
 
 logger = logging.getLogger(__name__)
@@ -152,15 +154,9 @@ class CSVDataLoader(AbstractDataLoader):
 
             if row.get('organization_logo_override'):
                 course.refresh_from_db()
-                is_logo_downloaded = download_and_save_course_image(
+                is_logo_downloaded = download_and_save_organization_logo_override_image(
                     course,
                     row['organization_logo_override'],
-                    'organization_logo_override',
-                    # TODO: Temporary addition of User agent to allow access to data CDNs
-                    headers={
-                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
-                                      '(KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36'
-                    }
                 )
                 if not is_logo_downloaded:
                     logger.error("Unexpected error happened while downloading override logo image for course {}".format(  # lint-amnesty, pylint: disable=logging-format-interpolation
